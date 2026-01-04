@@ -11,6 +11,7 @@ type AuthContextValue = {
 	accessToken: string | null;
 	loading: boolean;
 	login: (email: string, password: string) => Promise<void>;
+	signup: (email: string, password: string) => Promise<void>;
 	logout: () => Promise<void>;
 };
 
@@ -24,9 +25,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	useEffect(() => {
 		let isMounted = true;
 		const supabase = getSupabaseClient();
+		if (!supabase) {
+			setUser(null);
+			setSession(null);
+			setLoading(false);
+			return () => {
+				isMounted = false;
+			};
+		}
+
+		const supabaseClient = supabase;
 
 		async function init() {
-			const { data, error } = await supabase.auth.getSession();
+			const { data, error } = await supabaseClient.auth.getSession();
 			if (!isMounted) return;
 			if (error) {
 				setUser(null);
@@ -41,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 		void init();
 
-		const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+		const { data: subscription } = supabaseClient.auth.onAuthStateChange((_event, session) => {
 			if (!isMounted) return;
 			setUser(session?.user ?? null);
 			setSession(session ?? null);
@@ -62,11 +73,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			loading,
 			login: async (email: string, password: string) => {
 				const supabase = getSupabaseClient();
+				if (!supabase) {
+					throw new Error(
+						'Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in frontend/.env.local and restart the dev server.'
+					);
+				}
 				const { error } = await supabase.auth.signInWithPassword({ email, password });
+				if (error) throw error;
+			},
+			signup: async (email: string, password: string) => {
+				const supabase = getSupabaseClient();
+				if (!supabase) {
+					throw new Error(
+						'Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in frontend/.env.local and restart the dev server.'
+					);
+				}
+				const { error } = await supabase.auth.signUp({ email, password });
 				if (error) throw error;
 			},
 			logout: async () => {
 				const supabase = getSupabaseClient();
+				if (!supabase) {
+					throw new Error(
+						'Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in frontend/.env.local and restart the dev server.'
+					);
+				}
 				const { error } = await supabase.auth.signOut();
 				if (error) throw error;
 			},
