@@ -11,16 +11,34 @@ const app = express();
 
 app.disable('x-powered-by');
 app.use(helmet());
+
+const corsAllowedOrigins = (process.env.CORS_ORIGINS ?? '')
+	.split(',')
+	.map((s) => s.trim())
+	.filter(Boolean);
+
 const corsOptions: cors.CorsOptions = {
-	origin: true,
+	origin: (origin, callback) => {
+		// Allow non-browser requests (no Origin header)
+		if (!origin) return callback(null, true);
+		// If no allowlist provided, allow all origins (typical for quick Vercel-to-Vercel setups)
+		if (corsAllowedOrigins.length === 0) return callback(null, true);
+		return callback(null, corsAllowedOrigins.includes(origin));
+	},
 	methods: ['GET', 'POST', 'OPTIONS'],
 	allowedHeaders: ['Content-Type', 'Authorization'],
+	optionsSuccessStatus: 204,
 };
-app.use(cors(corsOptions));
-// Express 5 + path-to-regexp no longer supports '*' here; handle preflight safely.
+
+const corsMiddleware = cors(corsOptions);
+
+// Apply CORS to all requests, and safely short-circuit preflight for Express 5.
 app.use((req, res, next) => {
-	if (req.method === 'OPTIONS') return res.sendStatus(204);
-	return next();
+	corsMiddleware(req, res, (err) => {
+		if (err) return next(err);
+		if (req.method === 'OPTIONS') return res.sendStatus(204);
+		return next();
+	});
 });
 app.use(express.json());
 app.use(morgan('dev'));
