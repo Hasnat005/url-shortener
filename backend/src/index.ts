@@ -4,6 +4,8 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
+import urlRoutes from './routes/urlRoutes';
+
 const app = express();
 
 app.disable('x-powered-by');
@@ -14,6 +16,13 @@ app.use(morgan('dev'));
 
 app.get('/health', (_req, res) => {
 	res.status(200).json({ status: 'ok' });
+});
+
+app.use('/api', urlRoutes);
+
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+	const message = err instanceof Error ? err.message : 'Internal Server Error';
+	res.status(500).json({ error: message });
 });
 
 const port = Number(process.env.PORT ?? 3001);
