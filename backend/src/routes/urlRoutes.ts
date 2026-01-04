@@ -18,6 +18,29 @@ type ShortenBody = {
 	originalUrl?: string;
 };
 
+router.get('/urls', requireAuth, async (_req, res, next) => {
+	try {
+		const user = res.locals.user as { id: string } | undefined;
+		if (!user?.id) {
+			return res.status(401).json({ error: 'Unauthorized' });
+		}
+
+		const { data, error } = await supabaseAdmin
+			.from('urls')
+			.select('id, short_code, original_url, click_count, created_at')
+			.eq('user_id', user.id)
+			.order('created_at', { ascending: false });
+
+		if (error) {
+			return next(error);
+		}
+
+		return res.status(200).json({ urls: data ?? [] });
+	} catch (err) {
+		return next(err);
+	}
+});
+
 router.post('/shorten', requireAuth, async (req, res, next) => {
 	try {
 		const body = (req.body ?? {}) as ShortenBody;
