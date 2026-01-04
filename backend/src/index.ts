@@ -4,6 +4,7 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
+import redirectRoutes from './routes/redirectRoutes';
 import urlRoutes from './routes/urlRoutes';
 
 const app = express();
@@ -19,6 +20,9 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api', urlRoutes);
+
+// Short URL redirects (keep after /api to avoid conflicts)
+app.use('/', redirectRoutes);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
 	const message = err instanceof Error ? err.message : 'Internal Server Error';
