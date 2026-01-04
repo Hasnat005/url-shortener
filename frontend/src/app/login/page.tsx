@@ -7,23 +7,52 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
 	const router = useRouter();
-	const { login, loading: authLoading, user } = useAuth();
+	const { login, resendConfirmation, loading: authLoading, user } = useAuth();
 
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [notice, setNotice] = useState<string | null>(null);
+	const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
 	async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		setError(null);
+		setNotice(null);
+		setNeedsConfirmation(false);
 		setSubmitting(true);
 		try {
 			await login(email.trim(), password);
 			router.push('/');
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Login failed';
-			setError(message);
+			if (message.toLowerCase().includes('email not confirmed')) {
+				setNeedsConfirmation(true);
+				setError('Email not confirmed. Please confirm your email to log in.');
+			} else {
+				setError(message);
+			}
+		} finally {
+			setSubmitting(false);
+		}
+	}
+
+	async function onResend() {
+		setError(null);
+		setNotice(null);
+		const trimmed = email.trim();
+		if (!trimmed) {
+			setError('Enter your email first.');
+			return;
+		}
+
+		setSubmitting(true);
+		try {
+			await resendConfirmation(trimmed);
+			setNotice('Confirmation email sent. Check your inbox (and spam).');
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to resend confirmation email');
 		} finally {
 			setSubmitting(false);
 		}
@@ -73,6 +102,12 @@ export default function LoginPage() {
 						</div>
 					) : null}
 
+					{notice ? (
+						<div className="rounded-lg border border-black/8 bg-black/2 px-3 py-2 text-sm text-zinc-700 dark:border-white/[.145] dark:bg-white/6 dark:text-zinc-200">
+							{notice}
+						</div>
+					) : null}
+
 					<button
 						className="flex h-11 w-full items-center justify-center rounded-lg bg-foreground px-4 text-sm font-medium text-background disabled:opacity-60"
 						disabled={submitting || authLoading}
@@ -80,6 +115,17 @@ export default function LoginPage() {
 					>
 						{submitting ? 'Signing in…' : 'Sign in'}
 					</button>
+
+					{needsConfirmation ? (
+						<button
+							className="flex h-11 w-full items-center justify-center rounded-lg border border-black/8 bg-background px-4 text-sm font-medium disabled:opacity-60 dark:border-white/[.145]"
+							disabled={submitting || authLoading}
+							type="button"
+							onClick={() => void onResend()}
+						>
+							Resend confirmation email
+						</button>
+					) : null}
 				</form>
 
 				<p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">

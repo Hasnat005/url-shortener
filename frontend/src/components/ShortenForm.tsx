@@ -26,10 +26,12 @@ export default function ShortenForm() {
 	const [originalUrl, setOriginalUrl] = useState('');
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [createdShortUrl, setCreatedShortUrl] = useState<string | null>(null);
 
 	async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		setError(null);
+		setCreatedShortUrl(null);
 
 		if (!accessToken) {
 			setError('You must be logged in to shorten URLs.');
@@ -68,7 +70,11 @@ export default function ShortenForm() {
 			}
 
 			// If the caller wants to show the created URL later, the backend returns it.
-			await (res.json() as Promise<ShortenResponse>);
+			const body = (await res.json()) as ShortenResponse;
+			const shortCode = body?.url?.short_code;
+			if (typeof shortCode === 'string' && shortCode.length > 0) {
+				setCreatedShortUrl(`${backendBaseUrl}/${shortCode}`);
+			}
 			setOriginalUrl('');
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to shorten URL');
@@ -96,6 +102,20 @@ export default function ShortenForm() {
 			{error ? (
 				<div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
 					{error}
+				</div>
+			) : null}
+
+			{createdShortUrl ? (
+				<div className="mt-3 rounded-lg border border-black/8 bg-black/2 px-3 py-2 text-sm dark:border-white/[.145] dark:bg-white/6">
+					<div className="text-xs text-zinc-600 dark:text-zinc-400">Shortened URL</div>
+					<a
+						href={createdShortUrl}
+						target="_blank"
+						rel="noreferrer"
+						className="break-all font-mono underline underline-offset-4"
+					>
+						{createdShortUrl}
+					</a>
 				</div>
 			) : null}
 

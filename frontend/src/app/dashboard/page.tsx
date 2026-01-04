@@ -123,7 +123,16 @@ export default function DashboardPage() {
 						) : (
 							urls.map((u) => (
 								<tr key={u.id} className="border-t border-black/6 dark:border-white/12">
-									<td className="px-4 py-3 font-mono">{u.short_code}</td>
+									<td className="px-4 py-3 font-mono">
+										<a
+											href={`${backendBaseUrl}/${u.short_code}`}
+											target="_blank"
+											rel="noreferrer"
+											className="underline underline-offset-4"
+										>
+											{u.short_code}
+										</a>
+									</td>
 									<td className="px-4 py-3">
 										<a
 											href={u.original_url}

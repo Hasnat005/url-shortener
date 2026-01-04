@@ -12,6 +12,7 @@ type AuthContextValue = {
 	loading: boolean;
 	login: (email: string, password: string) => Promise<void>;
 	signup: (email: string, password: string) => Promise<void>;
+	resendConfirmation: (email: string) => Promise<void>;
 	logout: () => Promise<void>;
 };
 
@@ -89,6 +90,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 					);
 				}
 				const { error } = await supabase.auth.signUp({ email, password });
+				if (error) throw error;
+			},
+			resendConfirmation: async (email: string) => {
+				const supabase = getSupabaseClient();
+				if (!supabase) {
+					throw new Error(
+						'Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in frontend/.env.local and restart the dev server.'
+					);
+				}
+				const { error } = await supabase.auth.resend({ type: 'signup', email });
 				if (error) throw error;
 			},
 			logout: async () => {

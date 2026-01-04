@@ -128,6 +128,9 @@ The backend currently assumes a table named `urls` with at least:
 Recommended:
 - Add a UNIQUE constraint on `short_code`
 
+SQL starter:
+- See [backend/sql/urls.sql](backend/sql/urls.sql) and run it in Supabase SQL Editor.
+
 ## Design Decisions
 
 - **Supabase Auth is the source of truth**: the frontend authenticates via Supabase; the backend verifies the Bearer token using `supabase.auth.getUser(token)`.
