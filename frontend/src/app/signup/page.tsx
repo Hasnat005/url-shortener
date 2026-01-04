@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useAuth } from '../../context/AuthContext';
 
@@ -23,8 +23,7 @@ export default function SignupPage() {
 		setSubmitting(true);
 		try {
 			await signup(email.trim(), password);
-			// Depending on Supabase settings, user may need to confirm email before session is created.
-			setNotice('Account created. If email confirmations are enabled, check your inbox before logging in.');
+			setNotice('Account created. You can now log in.');
 			router.push('/login');
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Sign up failed';
@@ -34,10 +33,13 @@ export default function SignupPage() {
 		}
 	}
 
-	if (!authLoading && user) {
-		router.push('/');
-		return null;
-	}
+	useEffect(() => {
+		if (!authLoading && user) {
+			router.replace('/');
+		}
+	}, [authLoading, user, router]);
+
+	if (!authLoading && user) return null;
 
 	return (
 		<div className="flex min-h-screen items-center justify-center bg-background px-4">
