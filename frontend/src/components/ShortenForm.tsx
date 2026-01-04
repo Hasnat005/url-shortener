@@ -27,11 +27,13 @@ export default function ShortenForm() {
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [createdShortUrl, setCreatedShortUrl] = useState<string | null>(null);
+	const [copied, setCopied] = useState(false);
 
 	async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		setError(null);
 		setCreatedShortUrl(null);
+		setCopied(false);
 
 		if (!accessToken) {
 			setError('You must be logged in to shorten URLs.');
@@ -83,6 +85,37 @@ export default function ShortenForm() {
 		}
 	}
 
+	async function copyToClipboard(text: string) {
+		try {
+			if (navigator?.clipboard?.writeText) {
+				await navigator.clipboard.writeText(text);
+				setCopied(true);
+				return;
+			}
+			throw new Error('Clipboard API not available');
+		} catch {
+			// Fallback for environments where Clipboard API is blocked/unavailable
+			try {
+				const textarea = document.createElement('textarea');
+				textarea.value = text;
+				textarea.setAttribute('readonly', 'true');
+				textarea.style.position = 'fixed';
+				textarea.style.left = '-9999px';
+				document.body.appendChild(textarea);
+				textarea.select();
+				const ok = document.execCommand('copy');
+				document.body.removeChild(textarea);
+				if (ok) {
+					setCopied(true);
+					return;
+				}
+			} catch {
+				// ignore
+			}
+			setError('Could not copy to clipboard.');
+		}
+	}
+
 	return (
 		<form onSubmit={onSubmit} className="w-full">
 			<label className="block">
@@ -108,14 +141,25 @@ export default function ShortenForm() {
 			{createdShortUrl ? (
 				<div className="mt-3 rounded-lg border border-black/8 bg-black/2 px-3 py-2 text-sm dark:border-white/[.145] dark:bg-white/6">
 					<div className="text-xs text-zinc-600 dark:text-zinc-400">Shortened URL</div>
-					<a
-						href={createdShortUrl}
-						target="_blank"
-						rel="noreferrer"
-						className="break-all font-mono underline underline-offset-4"
-					>
-						{createdShortUrl}
-					</a>
+					<div className="mt-1 flex items-start justify-between gap-3">
+						<a
+							href={createdShortUrl}
+							target="_blank"
+							rel="noreferrer"
+							className="min-w-0 flex-1 break-all font-mono underline underline-offset-4"
+						>
+							{createdShortUrl}
+						</a>
+						<button
+							type="button"
+							onClick={() => void copyToClipboard(createdShortUrl)}
+							className="shrink-0 rounded-md border border-black/8 bg-background px-3 py-1 text-xs font-medium text-foreground disabled:opacity-60 dark:border-white/[.145]"
+							disabled={copied}
+							aria-label={copied ? 'Copied' : 'Copy shortened URL'}
+						>
+							{copied ? 'Copied' : 'Copy'}
+						</button>
+					</div>
 				</div>
 			) : null}
 
