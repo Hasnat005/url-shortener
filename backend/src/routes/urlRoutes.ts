@@ -41,6 +41,39 @@ router.get('/urls', requireAuth, async (_req, res, next) => {
 	}
 });
 
+router.delete('/urls/:id', requireAuth, async (req, res, next) => {
+	try {
+		const user = res.locals.user as { id: string } | undefined;
+		if (!user?.id) {
+			return res.status(401).json({ error: 'Unauthorized' });
+		}
+
+		const id = typeof req.params.id === 'string' ? req.params.id.trim() : '';
+		if (!id) {
+			return res.status(400).json({ error: 'id is required' });
+		}
+
+		const { data, error } = await supabaseAdmin
+			.from('urls')
+			.delete()
+			.eq('id', id)
+			.eq('user_id', user.id)
+			.select('id');
+
+		if (error) {
+			return next(error);
+		}
+
+		if (!data || data.length === 0) {
+			return res.status(404).json({ error: 'Not found' });
+		}
+
+		return res.status(200).json({ deletedId: data[0]?.id ?? id });
+	} catch (err) {
+		return next(err);
+	}
+});
+
 router.post('/shorten', requireAuth, async (req, res, next) => {
 	try {
 		const body = (req.body ?? {}) as ShortenBody;

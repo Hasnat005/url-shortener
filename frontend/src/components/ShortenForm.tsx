@@ -15,8 +15,14 @@ type ShortenResponse = {
 };
 
 function getBackendBaseUrl(): string {
-	const raw = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
-	return raw.replace(/\/+$/, '');
+	const raw = process.env.NEXT_PUBLIC_BACKEND_URL;
+	if (raw && raw.trim()) return raw.trim().replace(/\/+$/, '');
+	if (typeof window !== 'undefined') {
+		const origin = window.location.origin;
+		if (origin.includes('localhost:3000')) return 'http://localhost:3001';
+		return origin;
+	}
+	return 'http://localhost:3001';
 }
 
 export default function ShortenForm() {

@@ -25,7 +25,7 @@ const corsOptions: cors.CorsOptions = {
 		if (corsAllowedOrigins.length === 0) return callback(null, true);
 		return callback(null, corsAllowedOrigins.includes(origin));
 	},
-	methods: ['GET', 'POST', 'OPTIONS'],
+	methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
 	allowedHeaders: ['Content-Type', 'Authorization'],
 	optionsSuccessStatus: 204,
 };
