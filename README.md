@@ -1,39 +1,44 @@
 # URL Shortener (Next.js + Express + Supabase)
 
 Full-stack URL shortener:
-- **Backend**: Node.js + TypeScript + Express + Supabase Admin client
-- **Frontend**: Next.js (App Router) + TypeScript + Tailwind + Supabase Auth
+- Backend: Node.js + TypeScript + Express + Supabase Admin client
+- Frontend: Next.js (App Router) + TypeScript + Tailwind + Supabase Auth
 
-## Prerequisites
+## 1) Setup Instructions
+
+### Prerequisites
 
 - Node.js 18+ (recommended)
 - A Supabase project
 
-## Project Structure
+### Install dependencies
 
-- `backend/` Express API + redirect handler
-- `frontend/` Next.js UI
+```powershell
+cd backend
+npm ci
+cd ..
+cd frontend
+npm ci
+```
 
-## Setup
+### Environment variables
 
-### 1) Backend env
-
-Create `backend/.env` (do **not** commit this file):
+Backend: create `backend/.env` (do not commit). Use `backend/.env.example` as a template.
 
 ```dotenv
 PORT=3001
 SUPABASE_URL=https://<your-project-ref>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
+
+# Comma-separated list of allowed frontend origins.
+# If empty, the backend will allow any origin.
+CORS_ORIGINS=https://your-frontend.vercel.app
 ```
 
-- Get these from Supabase Dashboard → **Project Settings → API**
-- `SUPABASE_SERVICE_ROLE_KEY` is **server-only** and must never be used in the frontend
+- Supabase values come from Supabase Dashboard → Project Settings → API
+- `SUPABASE_SERVICE_ROLE_KEY` is server-only. If it leaks, rotate it immediately.
 
-A template is available at `backend/.env.example`.
-
-### 2) Frontend env
-
-Create `frontend/.env.local` (do **not** commit this file):
+Frontend: create `frontend/.env.local` (do not commit). Use `frontend/.env.example` as a template.
 
 ```dotenv
 NEXT_PUBLIC_SUPABASE_URL=https://<your-project-ref>.supabase.co
@@ -41,22 +46,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-public-key>
 NEXT_PUBLIC_BACKEND_URL=http://localhost:3001
 ```
 
-- Get the **Project URL** and **anon** key from Supabase Dashboard → **Project Settings → API**
-- `NEXT_PUBLIC_BACKEND_URL` should point to where your backend is reachable from the browser
-
-A template is available at `frontend/.env.example`.
-
-### 3) Install dependencies
-
-```powershell
-cd backend
-npm install
-cd ..
-cd frontend
-npm install
-```
-
-### 4) Run locally
+### Run locally
 
 In one terminal:
 
@@ -75,72 +65,133 @@ npm run dev
 - Frontend: http://localhost:3000
 - Backend: http://localhost:3001
 
-## API Endpoints
+## 2) Project Structure
+
+- `backend/` Express API + redirect handler
+  - `src/index.ts`: server + CORS + route wiring
+  - `src/routes/urlRoutes.ts`: authenticated API (`/api/*`)
+  - `src/routes/redirectRoutes.ts`: `GET /:code` redirect + click tracking
+  - `sql/urls.sql`: starter schema for Supabase
+- `frontend/` Next.js UI
+  - `src/context/AuthContext.tsx`: Supabase auth + token management
+  - `src/components/ShortenForm.tsx`: create short URLs + copy
+  - `src/app/dashboard/page.tsx`: list URLs + copy + delete
+
+## 3) API Documentation
 
 Base URL (local): `http://localhost:3001`
 
-### Health
+### `GET /health`
 
-- `GET /health` → `{ "status": "ok" }`
+Response (200):
 
-### Create short URL (authenticated)
+```json
+{ "status": "ok" }
+```
 
-- `POST /api/shorten`
-- Auth: `Authorization: Bearer <supabase_access_token>`
-- Body:
+### `POST /api/shorten` (authenticated)
+
+Headers:
+
+```http
+Authorization: Bearer <supabase_access_token>
+Content-Type: application/json
+```
+
+Body:
 
 ```json
 { "originalUrl": "https://example.com" }
 ```
 
-- Responses:
-  - `201` → `{ "url": { ...row } }`
-  - `400` → `{ "error": "..." }` (invalid URL, missing field)
-  - `401` → `{ "error": "..." }` (missing/invalid token)
-  - `403` → `{ "error": "URL limit reached (100)" }`
-
-### List user URLs (authenticated)
-
-- `GET /api/urls`
-- Auth: `Authorization: Bearer <supabase_access_token>`
-- Response:
+Success (201):
 
 ```json
-{ "urls": [ ... ] }
+{
+  "url": {
+    "id": "<uuid>",
+    "user_id": "<uuid>",
+    "original_url": "https://example.com",
+    "short_code": "a1B2c3",
+    "click_count": 0,
+    "created_at": "2026-01-01T00:00:00.000Z"
+  }
+}
 ```
 
-### Redirect + tracking
+Errors:
+- 400: missing/invalid URL
+- 401: missing/invalid token
+- 403: `{ "error": "URL limit reached (100)" }`
 
-- `GET /:code`
-- Looks up `code` in the `urls` table and redirects (`302`) to `original_url`
-- Increments `click_count` (best-effort)
+Notes:
+- Short codes are random Base62, length 6–8 characters.
 
-## Data Model Assumptions (Supabase)
+### `GET /api/urls` (authenticated)
 
-The backend currently assumes a table named `urls` with at least:
-- `id` (uuid)
-- `user_id` (uuid)
-- `original_url` (text)
-- `short_code` (text)
-- `click_count` (int, default 0)
-- `created_at` (timestamp, default now)
+Headers:
 
-Recommended:
-- Add a UNIQUE constraint on `short_code`
+```http
+Authorization: Bearer <supabase_access_token>
+```
 
-SQL starter:
-- See [backend/sql/urls.sql](backend/sql/urls.sql) and run it in Supabase SQL Editor.
+Success (200):
 
-## Design Decisions
+```json
+{
+  "urls": [
+    {
+      "id": "<uuid>",
+      "short_code": "a1B2c3",
+      "original_url": "https://example.com",
+      "click_count": 12,
+      "created_at": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
 
-- **Supabase Auth is the source of truth**: the frontend authenticates via Supabase; the backend verifies the Bearer token using `supabase.auth.getUser(token)`.
-- **Server-side admin client**: the backend uses the **service role** key to read/write `urls`. This keeps DB operations on the server and avoids leaking privileged credentials.
-- **Frontend uses anon key only**: the browser uses `NEXT_PUBLIC_SUPABASE_ANON_KEY` as intended; access is enforced via Supabase RLS policies and/or server-side checks.
-- **Quota enforcement**: backend enforces a per-user limit of 100 URLs.
-- **Short code generation**: a random 6-character Base62 code is generated. DB uniqueness should be enforced with a unique constraint.
-- **Click tracking**: click count is updated best-effort on redirect; if you need strict concurrency correctness, prefer a DB-side atomic increment.
+### `DELETE /api/urls/:id` (authenticated)
 
-## Security Notes
+Headers:
 
-- Never commit real secrets (`backend/.env`, `frontend/.env.local`).
-- If you accidentally exposed a `service_role` key, rotate it in Supabase immediately.
+```http
+Authorization: Bearer <supabase_access_token>
+```
+
+Success (200):
+
+```json
+{ "deletedId": "<uuid>" }
+```
+
+Errors:
+- 400: `{ "error": "id is required" }`
+- 401: unauthorized
+- 404: not found (or not owned by the current user)
+
+### `GET /:code` (redirect + tracking)
+
+- Redirects with 302 to the original URL.
+- Increments `click_count` best-effort.
+
+If not found (404):
+
+```json
+{ "error": "Not found" }
+```
+
+## 4) Design Decisions
+
+- Supabase Auth is the source of truth: frontend signs in via Supabase; backend validates `Authorization: Bearer <token>`.
+- Backend uses a server-side Supabase Admin client (service role key) to read/write the `urls` table.
+- Quota enforcement is server-side: max 100 URLs per user.
+- Short code generation uses random Base62 (6–8 chars) with best-effort collision retries; database uniqueness is still recommended.
+- Click tracking on redirect is best-effort; for perfect concurrency, prefer a DB-side atomic increment.
+- CORS is configurable via `CORS_ORIGINS` (comma-separated allowlist). If empty, all origins are allowed.
+
+## 5) Known Limitations
+
+- The backend is a long-running Express server; deploying it on platforms that only support serverless functions (e.g., Vercel) requires adaptation.
+- Redirect click counting is not a transactional atomic increment.
+- If the `urls.short_code` column is not unique in the database, collisions are still possible (even with retries).
