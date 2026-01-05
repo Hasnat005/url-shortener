@@ -116,7 +116,8 @@ router.post('/shorten', requireAuth, async (req, res, next) => {
 		// Generate a short code and insert
 		const maxAttempts = 10;
 		for (let attempt = 0; attempt < maxAttempts; attempt++) {
-			const shortCode = randomBase62Code(6);
+			const length = 6 + Math.floor(Math.random() * 3); // 6–8 chars
+			const shortCode = randomBase62Code(length);
 
 			// Best-effort uniqueness check (DB should still enforce a unique constraint)
 			const { data: existing, error: existsError } = await supabaseAdmin

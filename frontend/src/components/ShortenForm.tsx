@@ -66,7 +66,7 @@ export default function ShortenForm() {
 
 			if (!res.ok) {
 				if (res.status === 403) {
-					setError('Limit reached: you can only create up to 100 URLs.');
+					setError('Free tier limit reached (100 URLs). Please upgrade to create more.');
 					return;
 				}
 
